@@ -1,22 +1,14 @@
 import os  
+import sys  
 from playwright.sync_api import sync_playwright  
 import requests  
   
-# テスト用に在庫があるReno11 AなどのURLのままにしてください  
+# 監視対象URL  
 TARGET_URL = "https://www.iijmio.jp/device/oppo/a79_5g.html"  
   
 def send_line(message):  
-    token = os.environ.get("LINE_TOKEN")  
-    user_id = os.environ.get("LINE_USER_ID")  
-      
-    # トークンやIDが設定されているか確認  
-    if not token:  
-        print("Error: LINE_TOKEN is missing.")  
-        return  
-    if not user_id:  
-        print("Error: LINE_USER_ID is missing.")  
-        return  
-  
+    token = os.environ["LINE_TOKEN"]  
+    user_id = os.environ["LINE_USER_ID"]  
     url = "https://api.line.me/v2/bot/message/push"  
     headers = {  
         "Content-Type": "application/json",  
@@ -26,39 +18,41 @@ def send_line(message):
         "to": user_id,  
         "messages": [{"type": "text", "text": message}]  
     }  
-      
-    # エラーの詳細を確認する  
-    try:  
-        res = requests.post(url, headers=headers, json=data)  
-        print(f"--- LINE API Response ---")  
-        print(f"Status Code: {res.status_code}") # 200なら成功、400系なら失敗  
-        print(f"Message: {res.text}")            # エラーの理由が表示されます  
-        print(f"-------------------------")  
-    except Exception as e:  
-        print(f"Request Error: {e}")  
+    requests.post(url, headers=headers, json=data)  
   
 def check_stock():  
     with sync_playwright() as p:  
+        # ブラウザを起動（ヘッドレスモード＝画面なしで高速動作）  
         browser = p.chromium.launch(headless=True)  
         page = browser.new_page()  
           
+        # ページにアクセス  
         print(f"Checking: {TARGET_URL}")  
         page.goto(TARGET_URL)  
           
+        # 重要なポイント：ページが完全に読み込まれるまで待つ  
+        # 「カートに入れる」や「在庫切れ」などの要素が出るまで最大30秒待機  
         try:  
             page.wait_for_load_state("networkidle", timeout=30000)  
         except:  
-            pass  
+            print("Time out waiting for page load")  
   
+        # ページ内のテキストをすべて取得  
         content = page.content()  
+          
+        # 判定ロジック  
+        # 1. 「一時在庫切れ」の文字があるか  
         is_out_of_stock = "一時在庫切れ" in content  
+          
+        # 2. 「お申し込み」ボタンが押せる状態か（classチェックなどは複雑なのでまずは文字で）  
         has_apply_text = "お申し込み" in content  
   
         print(f"Status - OutOfStockText: {is_out_of_stock}, ApplyText: {has_apply_text}")  
   
+        # 「在庫切れ」の文字がなく、かつ「お申し込み」の文字がある場合  
         if not is_out_of_stock and has_apply_text:  
-            print("Stock FOUND! Sending notification...")  
-            send_line(f"🚨【IIJmio在庫復活】\n在庫あります！\n{TARGET_URL}")  
+            print("Stock FOUND!")  
+            send_line(f"🚨【IIJmio在庫復活】\nOPPO Find X9 の在庫が復活した可能性があります！\nブラウザで確認しました。\n\n{TARGET_URL}")  
         else:  
             print("Stock not available.")  
   
