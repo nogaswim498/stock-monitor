@@ -1,0 +1,29 @@
+name: Stock Monitor  
+  
+on:  
+  schedule:  
+    - cron: '*/30 * * * *' # 30分ごとに実行  
+  workflow_dispatch: # 手動実行ボタン  
+  
+jobs:  
+  check:  
+    runs-on: ubuntu-latest  
+    timeout-minutes: 5 # 万が一止まっても5分で強制終了  
+    steps:  
+      - uses: actions/checkout@v3  
+  
+      - name: Set up Python  
+        uses: actions/setup-python@v4  
+        with:  
+          python-version: '3.9'  
+  
+      - name: Install dependencies  
+        run: |  
+          pip install playwright requests  
+          playwright install chromium  
+  
+      - name: Run Monitor  
+        env:  
+          LINE_TOKEN: ${{ secrets.LINE_TOKEN }}  
+          LINE_USER_ID: ${{ secrets.LINE_USER_ID }}  
+        run: python monitor.py  
