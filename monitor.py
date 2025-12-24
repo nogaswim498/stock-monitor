@@ -4,7 +4,7 @@ from playwright.sync_api import sync_playwright
 import requests  
   
 # 監視対象URL  
-TARGET_URL = "https://www.iijmio.jp/device/oppo/a79_5g.html"  
+TARGET_URL = "https://www.iijmio.jp/device/oppo/findx9.html"  
   
 def send_line(message):  
     token = os.environ["LINE_TOKEN"]  
