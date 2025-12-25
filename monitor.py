@@ -7,8 +7,13 @@ import requests
 TARGET_URL = "https://www.iijmio.jp/device/oppo/findx9.html"  
   
 def send_line(message):  
-    token = os.environ["LINE_TOKEN"]  
-    user_id = os.environ["LINE_USER_ID"]  
+    token = os.environ.get("LINE_TOKEN")  
+    user_id = os.environ.get("LINE_USER_ID")  
+      
+    if not token or not user_id:  
+        print("Error: LINE settings are missing.")  
+        return  
+  
     url = "https://api.line.me/v2/bot/message/push"  
     headers = {  
         "Content-Type": "application/json",  
@@ -18,43 +23,46 @@ def send_line(message):
         "to": user_id,  
         "messages": [{"type": "text", "text": message}]  
     }  
-    requests.post(url, headers=headers, json=data)  
+    try:  
+        requests.post(url, headers=headers, json=data)  
+    except Exception as e:  
+        print(f"Request Error: {e}")  
   
 def check_stock():  
     with sync_playwright() as p:  
-        # ブラウザを起動（ヘッドレスモード＝画面なしで高速動作）  
         browser = p.chromium.launch(headless=True)  
         page = browser.new_page()  
           
-        # ページにアクセス  
         print(f"Checking: {TARGET_URL}")  
         page.goto(TARGET_URL)  
           
-        # 重要なポイント：ページが完全に読み込まれるまで待つ  
-        # 「カートに入れる」や「在庫切れ」などの要素が出るまで最大30秒待機  
         try:  
             page.wait_for_load_state("networkidle", timeout=30000)  
         except:  
             print("Time out waiting for page load")  
   
-        # ページ内のテキストをすべて取得  
         content = page.content()  
           
-        # 判定ロジック  
-        # 1. 「一時在庫切れ」の文字があるか  
+        # --- 判定ロジックの修正 ---  
+          
+        # 1. 「一時在庫切れ」があるか？  
         is_out_of_stock = "一時在庫切れ" in content  
           
-        # 2. 「お申し込み」ボタンが押せる状態か（classチェックなどは複雑なのでまずは文字で）  
+        # 2. 「販売再開予定」があるか？（←これを追加！これが今回の原因）  
+        is_scheduled = "販売再開予定" in content  
+          
+        # 3. 「お申し込み」の文字があるか？  
         has_apply_text = "お申し込み" in content  
   
-        print(f"Status - OutOfStockText: {is_out_of_stock}, ApplyText: {has_apply_text}")  
+        print(f"Status - OutOfStock: {is_out_of_stock}, Scheduled: {is_scheduled}, ApplyText: {has_apply_text}")  
   
-        # 「在庫切れ」の文字がなく、かつ「お申し込み」の文字がある場合  
-        if not is_out_of_stock and has_apply_text:  
+        # 【結論】  
+        # 「在庫切れ」でもなく、かつ「再開予定」でもなく、かつ「お申し込み」がある場合のみ通知  
+        if not is_out_of_stock and not is_scheduled and has_apply_text:  
             print("Stock FOUND!")  
-            send_line(f"🚨【IIJmio在庫復活】\nOPPO Find X9 の在庫が復活した可能性があります！\nブラウザで確認しました。\n\n{TARGET_URL}")  
+            send_line(f"🚨【IIJmio在庫復活】\nOPPO Find X9 が購入可能になりました！\n\n{TARGET_URL}")  
         else:  
-            print("Stock not available.")  
+            print("Stock not available (Sold out or Scheduled).")  
   
         browser.close()  
   
