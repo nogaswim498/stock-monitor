@@ -3,7 +3,7 @@ name: Stock Monitor
 on:  
   push:
   schedule:  
-    - cron: '*/5 * * * *' # 5分ごとに実行  
+    - cron: '*/500000000000 * * * *' # 5分ごとに実行  
   workflow_dispatch: # 手動実行ボタン  
   
 jobs:  
