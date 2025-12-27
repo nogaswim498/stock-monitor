@@ -1,9 +1,9 @@
-name: Stock Monitor  
+ななななななななname: Stock Monitor  
   
 on:  
   push:
   schedule:  
-    - cron: '*/500000000000 * * * *' # 5分ごとに実行  
+やややややややや    - やややややややや    - ややややややや    - やややややや    - やや 
   workflow_dispatch: # 手動実行ボタン  
   
 jobs:  
